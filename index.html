@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rain Digital Twin System</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #f0f0f0;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 8px;
+            z-index: 10;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        input {
+            width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="ui">
+    <h2>🌧 Rain Control System</h2>
+
+    <p id="status">Status: STOPPED</p>
+
+    <button onclick="startRain()">Start Rain</button>
+    <button onclick="stopRain()">Stop Rain</button>
+
+    <br><br>
+
+    <label>Rain Intensity</label><br>
+    <input type="range" min="0" max="100" value="10" oninput="setRain(this.value)">
+</div>
+
+<script>
+    let rainRate = 10;
+    let raining = false;
+
+    function startRain() {
+        raining = true;
+        document.getElementById("status").innerText = "Status: RUNNING";
+    }
+
+    function stopRain() {
+        raining = false;
+        document.getElementById("status").innerText = "Status: STOPPED";
+    }
+
+    function setRain(value) {
+        rainRate = value;
+        console.log("Rain rate:", rainRate);
+    }
+</script>
+
+</body>
+</html>
