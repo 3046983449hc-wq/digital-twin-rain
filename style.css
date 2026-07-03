@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Digital Twin Rain System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<h1>🌧️ Digital Twin Rain Control System</h1>
+
+<p>LLM + Unity + Real-time Rain Simulation</p>
+
+<button onclick="send('START_RAIN')">Start Rain</button>
+<button onclick="send('STOP_RAIN')">Stop Rain</button>
+<button onclick="send('SET_RAIN 80')">Heavy Rain</button>
+
+<p id="status">Status: Ready</p>
+
+<script src="script.js"></script>
+
+</body>
+</html>
