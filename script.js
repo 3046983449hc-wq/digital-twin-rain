@@ -1,4 +1,3 @@
-function send(cmd) {
-    document.getElementById("status").innerText = "Sent: " + cmd;
-    console.log(cmd);
-}
+window.onload = function () {
+    document.body.innerHTML = "<h1>Rain System Loaded ✅</h1><p>Status: OK</p>";
+};
