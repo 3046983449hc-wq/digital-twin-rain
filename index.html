@@ -1,140 +1,206 @@
 <!DOCTYPE html>
 <html lang="en-us">
-<head>
-  <meta charset="utf-8">
-  <title>RainTwin AI Control</title>
-  <link rel="shortcut icon" href="TemplateData/favicon.ico">
-  <link rel="stylesheet" href="TemplateData/style.css">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | RainTwin</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
 
-  <style>
-    /* 🌧 AI控制面板 */
-    #ai-panel {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 9999;
-      background: rgba(0,0,0,0.7);
-      padding: 10px;
-      border-radius: 10px;
-      color: white;
-      width: 260px;
-    }
+    <!-- 🌧 AI控制面板样式（新增，不影响Unity） -->
+    <style>
+      #ai-panel {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 9999;
+        background: rgba(0,0,0,0.75);
+        padding: 10px;
+        border-radius: 10px;
+        color: white;
+        width: 220px;
+        font-family: Arial;
+      }
 
-    #ai-input {
-      width: 100%;
-      padding: 6px;
-      margin-top: 5px;
-    }
+      #ai-input {
+        width: 100%;
+        padding: 5px;
+        margin-top: 5px;
+      }
 
-    #ai-btn {
-      width: 100%;
-      margin-top: 5px;
-      padding: 6px;
-      cursor: pointer;
-    }
+      #ai-btn {
+        width: 100%;
+        margin-top: 5px;
+        padding: 6px;
+        cursor: pointer;
+      }
 
-    #ai-result {
-      margin-top: 8px;
-      font-size: 14px;
-    }
-  </style>
-</head>
+      #ai-result {
+        margin-top: 8px;
+        font-size: 13px;
+      }
+    </style>
 
-<body>
+  </head>
 
-<!-- 🌟 AI控制面板 -->
-<div id="ai-panel">
-  <div>🤖 AI降雨控制</div>
+  <body>
 
-  <input id="ai-input" placeholder="输入：下雨 / 停止 / 大雨 / 小雨">
+    <!-- 🌧 AI控制面板（新增） -->
+    <div id="ai-panel">
+      🤖 AI降雨控制
 
-  <button id="ai-btn" onclick="sendAI()">发送给AI</button>
+      <input id="ai-input" placeholder="输入：大雨/小雨/停止">
 
-  <div id="ai-result">等待AI响应...</div>
-</div>
+      <button id="ai-btn" onclick="askAI()">发送AI</button>
 
-<!-- Unity -->
-<div id="unity-container" class="unity-desktop">
-  <canvas id="unity-canvas" width=960 height=600></canvas>
-
-  <div id="unity-loading-bar">
-    <div id="unity-progress-bar-empty">
-      <div id="unity-progress-bar-full"></div>
+      <div id="ai-result">等待响应...</div>
     </div>
-  </div>
 
-  <div id="unity-footer">
-    <div id="unity-build-title">RainTwin</div>
-  </div>
-</div>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
 
-<script>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
 
-const API = "https://rain-worker.rain-worker-30469.workers.dev/rain";
+      <div id="unity-warning"> </div>
 
-/* =========================
-   🤖 AI控制函数
-========================= */
-async function sendAI() {
+      <div id="unity-footer">
+        <div id="unity-webgl-logo"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">RainTwin</div>
+      </div>
+    </div>
 
-  let msg = document.getElementById("ai-input").value;
+    <script>
 
-  document.getElementById("ai-result").innerText = "AI思考中...";
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      var warningBanner = document.querySelector("#unity-warning");
 
-  try {
-    let res = await fetch(API);
-    let data = await res.json();
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
 
-    let rain = data.rain;
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/build.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/build.data",
+        frameworkUrl: buildUrl + "/build.framework.js",
+        codeUrl: buildUrl + "/build.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "RainTwin",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+      };
 
-    document.getElementById("ai-result").innerText =
-      "AI输出雨量：" + rain;
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+      } else {
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
 
-    // 🌧 控制Unity（关键）
-    if (window.unityInstance) {
-      window.unityInstance.SendMessage(
-        "RainManager",
-        "SetRainRate",
-        rain.toString()
-      );
+      loadingBar.style.display = "block";
 
-      window.unityInstance.SendMessage(
-        "RainManager",
-        rain > 50 ? "StartRain" : "StopRain"
-      );
-    }
+      var script = document.createElement("script");
+      script.src = loaderUrl;
 
-  } catch (e) {
-    document.getElementById("ai-result").innerText =
-      "错误：" + e;
-  }
-}
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
 
-/* =========================
-   Unity加载部分（保持原样，只加一行）
-========================= */
+          loadingBar.style.display = "none";
 
-var buildUrl = "Build";
-var loaderUrl = buildUrl + "/build.loader.js";
+          // ⭐关键：让AI可以控制Unity
+          window.unityInstance = unityInstance;
 
-var config = {
-  dataUrl: buildUrl + "/build.data",
-  frameworkUrl: buildUrl + "/build.framework.js",
-  codeUrl: buildUrl + "/build.wasm",
-  streamingAssetsUrl: "StreamingAssets",
-  companyName: "DefaultCompany",
-  productName: "RainTwin",
-  productVersion: "0.1",
-};
+          fullscreenButton.onclick = () => {
+            unityInstance.SetFullscreen(1);
+          };
 
-createUnityInstance(document.querySelector("#unity-canvas"), config)
-.then((unityInstance) => {
+        }).catch((message) => {
+          alert(message);
+        });
+      };
 
-  window.unityInstance = unityInstance; // ⭐关键：让AI能控制Unity
+      document.body.appendChild(script);
 
-});
+      // =========================
+      // 🤖 AI控制逻辑（新增）
+      // =========================
 
-</script>
+      const API = "https://rain-worker.rain-worker-30469.workers.dev/rain";
 
-</body>
+      async function askAI() {
+
+        let msg = document.getElementById("ai-input").value;
+
+        document.getElementById("ai-result").innerText = "AI思考中...";
+
+        try {
+          let res = await fetch(API);
+          let data = await res.json();
+
+          let rain = data.rain;
+
+          document.getElementById("ai-result").innerText =
+            "AI雨量：" + rain;
+
+          // 🌧 控制Unity（关键）
+          if (window.unityInstance) {
+            window.unityInstance.SendMessage(
+              "RainManager",
+              "SetRainRate",
+              rain.toString()
+            );
+
+            if (rain > 0) {
+              window.unityInstance.SendMessage(
+                "RainManager",
+                "StartRain"
+              );
+            } else {
+              window.unityInstance.SendMessage(
+                "RainManager",
+                "StopRain"
+              );
+            }
+          }
+
+        } catch (e) {
+          document.getElementById("ai-result").innerText =
+            "错误：" + e;
+        }
+      }
+
+    </script>
+  </body>
 </html>
