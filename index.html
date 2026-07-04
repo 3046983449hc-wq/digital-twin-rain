@@ -2,78 +2,136 @@
 <html lang="en-us">
 <head>
   <meta charset="utf-8">
-  <title>RainTwin AI</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>RainTwin</title>
+
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
   <link rel="stylesheet" href="TemplateData/style.css">
+
+  <!-- ✅ 关键：全屏适配 -->
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+
+    #unity-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+    }
+
+    #unity-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #unity-loading-bar {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
 </head>
 
 <body>
+
 <div id="unity-container">
   <canvas id="unity-canvas"></canvas>
 
   <div id="unity-loading-bar">
-    <div id="unity-progress-bar-full"></div>
+    <div id="unity-logo"></div>
+    <div id="unity-progress-bar-empty">
+      <div id="unity-progress-bar-full"></div>
+    </div>
   </div>
 
-  <!-- AI 面板 -->
-  <div style="position: absolute; right: 20px; top: 20px; width: 300px; background: white; padding: 10px;">
-    <h3>AI Control</h3>
+  <div id="unity-warning"></div>
 
-    <input id="aiInput" placeholder="例如：开始下雨 / 调大雨量 80" style="width:100%">
-    <button onclick="sendAI()">发送</button>
-
-    <div id="aiLog"></div>
+  <div id="unity-footer">
+    <div id="unity-webgl-logo"></div>
+    <div id="unity-fullscreen-button"></div>
+    <div id="unity-build-title">RainTwin</div>
   </div>
 </div>
 
 <script>
-var buildUrl = "Build";
+  const container = document.querySelector("#unity-container");
+  const canvas = document.querySelector("#unity-canvas");
+  const loadingBar = document.querySelector("#unity-loading-bar");
+  const progressBarFull = document.querySelector("#unity-progress-bar-full");
+  const fullscreenButton = document.querySelector("#unity-fullscreen-button");
+  const warningBanner = document.querySelector("#unity-warning");
 
-var config = {
-  dataUrl: buildUrl + "/build.data",
-  frameworkUrl: buildUrl + "/build.framework.js",
-  codeUrl: buildUrl + "/build.wasm",
-  streamingAssetsUrl: "StreamingAssets",
-  companyName: "Rain",
-  productName: "RainTwin"
-};
+  function unityShowBanner(msg, type) {
+    const div = document.createElement("div");
+    div.innerHTML = msg;
+    warningBanner.appendChild(div);
 
-let unityInstance = null;
+    if (type === "error") div.style = "background:red;padding:10px;";
+    if (type === "warning") div.style = "background:yellow;padding:10px;";
 
-// ⚠️ 关键修复：必须确保 loader.js 正常加载
-var script = document.createElement("script");
-script.src = buildUrl + "/build.loader.js";
-
-script.onload = () => {
-  createUnityInstance(document.querySelector("#unity-canvas"), config)
-  .then((instance) => {
-      unityInstance = instance;
-      console.log("Unity Loaded OK");
-  })
-  .catch((err) => {
-      console.error("Unity load failed:", err);
-  });
-};
-
-document.body.appendChild(script);
-
-// ================= AI -> Unity =================
-function sendAI() {
-  const text = document.getElementById("aiInput").value;
-
-  if (!unityInstance) {
-    alert("Unity还没加载完成");
-    return;
+    if (type !== "error") {
+      setTimeout(() => warningBanner.removeChild(div), 5000);
+    }
   }
 
-  // 👉 直接发给 Unity
-  unityInstance.SendMessage(
-    "RainManager",
-    "ExecuteCommand",
-    text
-  );
+  const buildUrl = "Build";
+  const loaderUrl = buildUrl + "/build.loader.js";
 
-  document.getElementById("aiLog").innerHTML += "<br>" + text;
-}
+  const config = {
+    dataUrl: buildUrl + "/build.data",
+    frameworkUrl: buildUrl + "/build.framework.js",
+    codeUrl: buildUrl + "/build.wasm",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "DefaultCompany",
+    productName: "RainTwin",
+    productVersion: "0.1",
+    showBanner: unityShowBanner,
+  };
+
+  // ✅ 防卡死关键设置
+  if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    container.className = "unity-mobile";
+  }
+
+  loadingBar.style.display = "block";
+
+  const script = document.createElement("script");
+  script.src = loaderUrl;
+
+  script.onload = () => {
+    createUnityInstance(canvas, config, (progress) => {
+      progressBarFull.style.width = (100 * progress) + "%";
+    }).then((unityInstance) => {
+
+      loadingBar.style.display = "none";
+
+      fullscreenButton.onclick = () => {
+        unityInstance.SetFullscreen(1);
+      };
+
+      // ✅ 给 Unity 预留 AI接口（后面用）
+      window.unityInstance = unityInstance;
+
+      // 👉 AI控制入口（以后Worker会调用这个）
+      window.sendCommandToUnity = function(cmd) {
+        unityInstance.SendMessage("RainManager", "ExecuteCommand", cmd);
+      };
+
+    }).catch((msg) => {
+      console.error(msg);
+      alert(msg);
+    });
+  };
+
+  document.body.appendChild(script);
 </script>
 
 </body>
