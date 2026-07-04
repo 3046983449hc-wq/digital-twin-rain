@@ -8,6 +8,7 @@
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
 
+    <!-- ========== 1. 新增：AI 聊天界面的 CSS 样式 ========== -->
     <style>
         #ai-chat-window {
             position: fixed;
@@ -108,6 +109,7 @@
 </head>
 
 <body>
+    <!-- Unity 视窗容器保持不变 -->
     <div id="unity-container" class="unity-desktop">
         <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
 
@@ -127,6 +129,7 @@
         </div>
     </div>
 
+    <!-- ========== 2. 新增：AI 聊天框的 HTML 结构 ========== -->
     <div id="ai-chat-window">
         <div id="ai-chat-header">
             <span>AI 降雨控制中心</span>
@@ -140,6 +143,7 @@
         </div>
     </div>
 
+    <!-- 原始 Unity WebGL 脚本逻辑 -->
     <script>
         var container = document.querySelector("#unity-container");
         var canvas = document.querySelector("#unity-canvas");
@@ -173,8 +177,8 @@
             updateBannerVisibility();
         }
 
-        // 🛠️ 已将路径和文件名完美修正为 build1 对应格式
-        var buildUrl = "build1";
+        // 🛠️ 根据 image_ad2608.png 修正：文件夹名称是首字母大写的 "Build"
+        var buildUrl = "Build";
         var loaderUrl = buildUrl + "/build1.loader.js";
 
         var config = {
@@ -227,6 +231,7 @@
         document.body.appendChild(script);
     </script>
 
+    <!-- ========== 3. 新增：AI 逻辑与 Unity 通信的 JavaScript ========== -->
     <script>
         // ⚠️ 请在此处将 URL 替换为您实际的 Cloudflare Worker 网址（注意末尾必须有 /rain 路由）
         const CLOUDFLARE_WORKER_URL = "https://rain-worker.rain-worker-30469.workers.dev/rain";
