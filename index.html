@@ -7,9 +7,109 @@
 
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+
+    <!-- ========== 1. 新增：AI 聊天界面的 CSS 样式 ========== -->
+    <style>
+        #ai-chat-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            height: 450px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000; /* 确保悬浮在 Unity 画布的最上方 */
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        #ai-chat-header {
+            background-color: #333;
+            color: #fff;
+            padding: 12px 15px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #ai-chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.ai {
+            background-color: #e9ecef;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        #ai-chat-input-area {
+            display: flex;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #ddd;
+        }
+
+        #ai-chat-input {
+            flex-grow: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        #ai-chat-send {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 0 15px;
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        #ai-chat-send:hover {
+            background-color: #0056b3;
+        }
+
+        #ai-chat-send:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 
 <body>
+    <!-- Unity 视窗容器保持不变 -->
     <div id="unity-container" class="unity-desktop">
         <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
 
@@ -29,6 +129,21 @@
         </div>
     </div>
 
+    <!-- ========== 2. 新增：AI 聊天框的 HTML 结构 ========== -->
+    <div id="ai-chat-window">
+        <div id="ai-chat-header">
+            <span>AI 降雨控制中心</span>
+        </div>
+        <div id="ai-chat-messages">
+            <div class="message ai">你好！我是 RainTwin 智能气象助手。你可以对我说“让雨大一点”、“别下雨了”或者“来场暴雨”，我会为你实时调节场景中的降雨强度。</div>
+        </div>
+        <div id="ai-chat-input-area">
+            <input type="text" id="ai-chat-input" placeholder="输入气象控制指令..." autocomplete="off" />
+            <button id="ai-chat-send">发送</button>
+        </div>
+    </div>
+
+    <!-- 原始 Unity WebGL 脚本逻辑 -->
     <script>
         var container = document.querySelector("#unity-container");
         var canvas = document.querySelector("#unity-canvas");
@@ -84,8 +199,6 @@
 
             container.className = "unity-mobile";
             canvas.className = "unity-mobile";
-
-            // config.devicePixelRatio = 1;
         } else {
             canvas.style.width = "960px";
             canvas.style.height = "600px";
@@ -96,10 +209,14 @@
         var script = document.createElement("script");
         script.src = loaderUrl;
 
+        // 修改点：定义一个全局变量用来存储 Unity 实例，方便 AI 脚本调用通信
+        var myUnityInstance = null;
+
         script.onload = () => {
             createUnityInstance(canvas, config, (progress) => {
                 progressBarFull.style.width = 100 * progress + "%";
             }).then((unityInstance) => {
+                myUnityInstance = unityInstance; // 成功加载后赋值给全局变量
                 loadingBar.style.display = "none";
 
                 fullscreenButton.onclick = () => {
@@ -111,6 +228,101 @@
         };
 
         document.body.appendChild(script);
+    </script>
+
+    <!-- ========== 3. 新增：AI 逻辑与 Unity 通信的 JavaScript ========== -->
+    <script>
+        // ⚠️ 请在此处将 URL 替换为您实际的 Cloudflare Worker 网址（注意末尾必须有 /rain 路由）
+        const CLOUDFLARE_WORKER_URL = "https://rain-worker.rain-worker-30469.workers.dev/rain";
+
+        const chatMessages = document.getElementById('ai-chat-messages');
+        const chatInput = document.getElementById('ai-chat-input');
+        const sendBtn = document.getElementById('ai-chat-send');
+
+        // 向聊天视窗添加消息气泡
+        function addMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            msgDiv.textContent = text;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // 自动滚到最下方
+        }
+
+        // 发送消息核心逻辑
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // 显示用户输入的文字
+            addMessage(text, 'user');
+            chatInput.value = '';
+            sendBtn.disabled = true;
+            chatInput.disabled = true;
+
+            // 显示等待动画占位符
+            const loadingId = 'loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.classList.add('message', 'ai');
+            loadingDiv.id = loadingId;
+            loadingDiv.textContent = '...';
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                // 向 Cloudflare Worker 发送请求
+                const response = await fetch(CLOUDFLARE_WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text }) // 传递用户输入的指令
+                });
+
+                if (!response.ok) throw new Error('网络响应异常');
+
+                // 解析 Worker 返回的 { rain: 数字 }
+                const data = await response.json(); 
+                
+                // 移除等待占位符
+                document.getElementById(loadingId).remove();
+                
+                // 将数据渲染在聊天框里告知用户
+                addMessage(`🌧️ 气象调节成功。AI 已将目标降雨强度调整为: ${data.rain}`, 'ai');
+
+                // 🔥 核心：将获取到的降雨数值实时发送给 Unity 内部
+                if (myUnityInstance) {
+                    /**
+                     * 参数说明：
+                     * 'RainManager'      -> 您 Unity 场景中挂载接收脚本的 GameObject 的名字
+                     * 'SetRainIntensity' -> 您 C# 脚本中负责接收数字的方法名
+                     * data.rain.toString() -> 传递的参数（WebGL通信必须为 string，Unity 端用 float.Parse() 转换即可）
+                     */
+                    myUnityInstance.SendMessage('RainManager', 'SetRainIntensity', data.rain.toString());
+                }
+
+            } catch (error) {
+                console.error("AI 接口请求失败:", error);
+                if (document.getElementById(loadingId)) {
+                    document.getElementById(loadingId).remove();
+                }
+                addMessage("抱歉，无法连接到降雨控制核心，请检查网络或配置。", 'ai');
+            } finally {
+                sendBtn.disabled = false;
+                chatInput.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // 绑定点击事件
+        sendBtn.addEventListener('click', sendMessage);
+
+        // 绑定回车事件并【阻止事件向 Unity 冒泡】（防止打字时触发 Unity 的动作）
+        chatInput.addEventListener('keydown', function(e) {
+            e.stopPropagation(); 
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        chatInput.addEventListener('keyup', e => e.stopPropagation());
+        chatInput.addEventListener('keypress', e => e.stopPropagation());
     </script>
 </body>
 </html>
