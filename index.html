@@ -292,11 +292,11 @@
                 if (myUnityInstance) {
                     /**
                      * 参数说明：
-                     * 'RainManager'      -> 您 Unity 场景中挂载接收脚本的 GameObject 的名字
+                     * 'RainController'   -> 已修正：完美匹配你 Unity 场景中的 GameObject 真实名称
                      * 'SetRainIntensity' -> 您 C# 脚本中负责接收数字的方法名
                      * data.rain.toString() -> 传递的参数（WebGL通信必须为 string，Unity 端用 float.Parse() 转换即可）
                      */
-                    myUnityInstance.SendMessage('RainManager', 'SetRainIntensity', data.rain.toString());
+                    myUnityInstance.SendMessage('RainController', 'SetRainIntensity', data.rain.toString());
                 }
 
             } catch (error) {
